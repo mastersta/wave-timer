@@ -22,6 +22,7 @@ unsigned long relay_timer = 0;
 void setup() {
   pinMode(relay_pin, OUTPUT);
   pinMode(set_on_pin, INPUT);
+	pinMode(set_off_pin, INPUT);
   Serial.begin(9600);
 }
 
