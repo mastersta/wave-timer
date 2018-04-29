@@ -22,7 +22,7 @@ const unsigned long minutes_to_millis = 60000;
 int button_set_on_state = 0;
 int button_set_off_state = 0;
 
-const boolean debug_mode = true;
+const boolean debug_mode = false;
 unsigned long debug_timer = 0;
 const unsigned long debug_write_interval = 1000;
 unsigned long current_timer = 0;
@@ -60,9 +60,7 @@ void loop() {
     }
   } else if (relay_state == HIGH) {  //if the relay state is high and waves are on
     if (current_timer - relay_timer > (time_on * minutes_to_millis)) {
-      if (debug_mode) {
-        turn_waves_off();
-      }
+      turn_waves_off();
     }
   }
   
@@ -80,16 +78,16 @@ void loop() {
   
   button_set_off_state = digitalRead(set_off_pin);
   if (button_set_off_state == HIGH) {
-    if (relay_state == LOW) {
+    if (relay_state == HIGH) {
       turn_waves_off();
     }
   }
   
   if (debug_mode) {
     if (current_timer - debug_timer > debug_write_interval) {
-      Serial.println(relay_state + String(" ") + (current_timer / 1000));
+      Serial.println(String("Relay: " + relay_state));
+      Serial.println(String("Secs elpsd: " + (current_timer - relay_timer) / 1000));
       debug_timer = current_timer;
-      Serial.println((current_timer - relay_timer) / 1000);
     }
   } 
 }
