@@ -11,12 +11,16 @@ Adafruit_7segment matrix = Adafruit_7segment();
 const int relay_pin = 13;
 const int set_on_pin = 2;
 const int set_off_pin = 3;
+const int clock_pin = 4;
+const int load_pin = 5;
+const int data_pin = 6;
 
-const unsigned long time_on = 1;  // time relay closed and waves on (in minutes)
-const unsigned long time_off = 2;  // time relay open and waves off (in minutes)
+unsigned long time_on = 10;  // time relay closed and waves on (in minutes)
+unsigned long time_off = 15;  // time relay open and waves off (in minutes)
 const unsigned long minutes_to_millis = 60000;
 
 int button_set_on_state = 0;
+int button_set_off_state = 0;
 
 const boolean debug_mode = true;
 unsigned long debug_timer = 0;
@@ -29,9 +33,20 @@ unsigned long relay_timer = 0;
 void setup() {
   pinMode(relay_pin, OUTPUT);
   pinMode(set_on_pin, INPUT);
-	pinMode(set_off_pin, INPUT);
+  pinMode(set_off_pin, INPUT);
+  pinMode(clock_pin, OUTPUT);
+  pinMode(load_pin, OUTPUT);
+  pinMode(data_pin, INPUT);
+
+  digitalWrite(relay_pin, LOW);
+  digitalWrite(clock_pin, LOW);
+  digitalWrite(load_pin, HIGH);
+
   Serial.begin(9600);
   matrix.begin(0x70);
+  
+  delay(5);
+  set_times();
 }
 
 void loop() {
@@ -60,6 +75,13 @@ void loop() {
   if (button_set_on_state == HIGH) {
     if (relay_state == LOW) {
       turn_waves_on();
+    }
+  }
+  
+  button_set_off_state = digitalRead(set_off_pin);
+  if (button_set_off_state == HIGH) {
+    if (relay_state == LOW) {
+      turn_waves_off();
     }
   }
   
@@ -118,4 +140,32 @@ void update_display() {
   matrix.writeDigitNum(4, secs_ones);
   matrix.drawColon((seconds_remaining - 1) % 2); //draws colon on even numbers
   matrix.writeDisplay();
+}
+
+void set_times() {
+  byte input_byte = 0b00000000;
+  
+  digitalWrite(load_pin, LOW);
+  delay(5);
+  digitalWrite(load_pin, HIGH);
+  delay(5);
+  
+  for(int i = 0; i < 8; i++) {
+    bitWrite(input_byte, i, digitalRead(data_pin));
+    digitalWrite(clock_pin, HIGH);
+    delay(5);
+    digitalWrite(clock_pin, LOW);
+    delay(5);
+  }
+
+  //byte input_byte = shiftIn(data_pin, clock_pin, LSBFIRST);
+
+  time_on = (input_byte >> 4);
+  time_off = (input_byte &= 0b00001111);
+  
+  if (debug_mode) {
+    Serial.println(String("Setting New Times"));
+    Serial.println(String("ON: ") + time_on + String(" OFF: ") + time_off);
+  }
+
 }
