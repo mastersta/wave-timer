@@ -9,8 +9,8 @@ Adafruit_7segment matrix = Adafruit_7segment();
 
 
 const int relay_pin = 13;
-const int set_on_pin = 2;
-const int set_off_pin = 3;
+const int set_on_pin = A2;
+const int set_off_pin = A3;
 const int clock_pin = 4;
 const int load_pin = 5;
 const int data_pin = 6;
@@ -46,7 +46,7 @@ void setup() {
   matrix.begin(0x70);
   
   delay(5);
-  set_times();
+  //set_times();
 }
 
 void loop() {
@@ -158,8 +158,8 @@ void set_times() {
 
   //byte input_byte = shiftIn(data_pin, clock_pin, LSBFIRST);
 
-  time_on = (input_byte >> 4);
-  time_off = (input_byte &= 0b00001111);
+  time_on = max(1,(input_byte >> 4));
+  time_off = max(1,(input_byte &= 0b00001111));
   
   if (debug_mode) {
     Serial.println(String("Setting New Times"));
