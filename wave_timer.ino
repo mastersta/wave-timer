@@ -14,6 +14,9 @@ const int set_off_pin = A3;
 const int clock_pin = 4;
 const int load_pin = 5;
 const int data_pin = 6;
+const int latch_pin = 7;
+const int data_out_pin = 8;
+
 
 unsigned long time_on = 10;  // time relay closed and waves on (in minutes)
 unsigned long time_off = 15;  // time relay open and waves off (in minutes)
@@ -138,6 +141,69 @@ void update_display() {
   matrix.writeDigitNum(4, secs_ones);
   matrix.drawColon((seconds_remaining - 1) % 2); //draws colon on even numbers
   matrix.writeDisplay();
+}
+
+void update_outdoor_display();
+  unsigned long seconds_remaining = 0;
+  
+  //stores the number of seconds remaining in the current cycle as a plain number for display on 7seg
+  if (relay_state) {
+    seconds_remaining = (time_on * 60) - ((current_timer - relay_timer) / 1000);
+  } else {
+    seconds_remaining = (time_off * 60) - ((current_timer - relay_timer) / 1000);
+  }
+  
+  //splits the number of remaining seconds into individual digits for display
+  int mins_tens = round((seconds_remaining / 600) % 100);
+  int mins_ones = round((seconds_remaining / 60) % 10);
+  int secs_tens = ((seconds_remaining / 10) % 6);
+  int secs_ones = (seconds_remaining % 10);
+
+  byte segment_array[10] = {
+    0b11111100, //0
+    0b01100000, //1
+    0b11011010, //2
+    0b11110010, //3
+    0b01100110, //4
+    0b10110110, //5
+    0b10111110, //6
+    0b11100000, //7
+    0b11111110, //8
+    0b11100110, //9
+  };
+
+  unsigned long output = {
+    (mins_tens << 24) +
+    (mins_ones << 16) +
+    (secs_tens << 8) +
+    (secs_ones)
+  };
+
+  /*
+  example:
+  12:34
+
+  mins_tens = 1
+  mins_ones = 2
+  secs_tens = 3
+  secs_ones = 4
+
+  so mins_tens = 01100000 << 24 = 01100000000000000000000000000000
+     mins_ones = 11011010 << 16 = 00000000110110100000000000000000
+     secs_tens = 11110010 <<  8 = 00000000000000001111001000000000
+     secs_ones = 01100110 ==      00000000000000000000000001100110
+
+  and all together:               01100000110110101111001001100110
+  
+     _a_
+    f| |b
+     _g_
+    e| |c
+     _d_
+  */
+
+  shiftOut(data_out_pin, clock_pin, MSBFIRST, output);
+
 }
 
 void set_times() {
