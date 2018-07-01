@@ -8,17 +8,12 @@
 Adafruit_7segment matrix = Adafruit_7segment();
 
 
-const int relay_pin      = 13;
-const int set_on_pin     = A2;
-const int set_off_pin    = A3;
-const int clock_pin      =  4;
-const int load_in_pin    =  5;
-const int data_in_pin    =  6;
-const int latch_in_pin   =  7;
-const int data_out_pin   =  8;
-const int load_out_pin   =  9;
-const int bell_pin       = 10;
-
+const int cycle_relay_pin      = 2;
+const int div_relay_pin  = 3
+const int set_on_pin     = 4;
+const int set_off_pin    = 5;
+const int div_off_pin    = A6;
+const int div_on_pin     = A7;
 
 unsigned long time_on = 10;  // time relay closed and waves on (in minutes)
 unsigned long time_off = 15;  // time relay open and waves off (in minutes)
@@ -32,37 +27,28 @@ unsigned long debug_timer = 0;
 const unsigned long debug_write_interval = 1000;
 unsigned long current_timer = 0;
 
-int relay_state = LOW;
-unsigned long relay_timer = 0;
+int cycle_relay_state = LOW;
+unsigned long cycle_relay_timer = 0;
 
-boolean ring_bell = LOW;
-unsigned long bell_timer = 0;
-unsigned long bell_ring_length = 2000;
+int div_relay_state = LOW;
+unsigned long div_relay_timer = 0;
 
 void setup() {
 
-  pinMode(relay_pin, OUTPUT);      //pin that controls relay to operate waves
+  pinMode(cycle_relay_pin, OUTPUT);      //pin that controls relay to operate wave cycle
+  pinMode(div_relay_pin, OUTPUT);  //pin that controls relay to operate diverters
   pinMode(set_on_pin, INPUT);      //pin that reads the set-on button
   pinMode(set_off_pin, INPUT);     //pin that reads the set-off button
-  pinMode(clock_pin, OUTPUT);      //clock for time input and display output
-  pinMode(load_pin, OUTPUT);       //load pin for time input
-  pinMode(data_pin, INPUT);        //data pin for time input
-  pinMode(data_out_pin, OUTPUT);   //data pin for display output
-  pinMode(load_out_pin, OUTPUT);   //load pin for display output
-  pinMode(bell_pin, OUTPUT);       //pin that controls relay to operate bell
+  pinMode(div_off_pin, INPUT);     //pin that reads from the pot to control diverter off cycle time
+  pinMode(div_on_pin, INPUT);      //pin that reads from the pot to control diverter on cycle time
 
-  digitalWrite(relay_pin, LOW);
-  digitalWrite(clock_pin, LOW);
-  digitalWrite(load_in_pin, HIGH);
-  digitalWrite(data_out_pin, LOW);
-  digitalWrite(load_out_pin, LOW);
-  digitalWrite(bell_pin, LOW);
+  digitalWrite(cycle_relay_pin, LOW);
+  digitalWrite(div_relay_pin, LOW);
 
   Serial.begin(9600);
   matrix.begin(0x70);
   
   delay(5);
-  //set_times();
 }
 
 void loop() {
@@ -70,49 +56,43 @@ void loop() {
   // current milliseconds since last reset
   current_timer = millis();
   
-  if (relay_state == LOW) {  //if the relay state is low and waves are off
-    if (current_timer - relay_timer > (time_off * minutes_to_millis)) {  //check to see if we've waited longer than the set time off
+  //---------wave cycle----------
+  if (cycle_relay_state == LOW) {  //if the relay state is low and waves are off
+    if (current_timer - cycle_relay_timer > (time_off * minutes_to_millis)) {  //check to see if we've waited longer than the set time off
       turn_waves_on();
     }
-  } else if (relay_state == HIGH) {  //if the relay state is high and waves are on
-    if (current_timer - relay_timer > (time_on * minutes_to_millis)) {
+  } else if (cycle_relay_state == HIGH) {  //if the relay state is high and waves are on
+    if (current_timer - cycle_relay_timer > (time_on * minutes_to_millis)) {
       turn_waves_off();
     }
   }
   
   //write the relay state to the relay pin
-  digitalWrite(relay_pin, relay_state);
+  digitalWrite(cycle_relay_pin, cycle_relay_state);
 
-  //write the bell flag state to the pin for its relay
-  digitalWrite(bell_pin, ring_bell);
-
-  //check if the bell has been on for long enough and switch the flag if so
-  if ring_bell {
-    if ((millis() - bell_timer) > bell_ring_length) {
-      ring_bell = LOW;
-    }
-  }
+  //---------diverter cycle----------
   
+
   update_display();
   
   button_set_on_state = digitalRead(set_on_pin);
   if (button_set_on_state == HIGH) {
-    if (relay_state == LOW) {
+    if (cycle_relay_state == LOW) {
       turn_waves_on();
     }
   }
   
   button_set_off_state = digitalRead(set_off_pin);
   if (button_set_off_state == HIGH) {
-    if (relay_state == HIGH) {
+    if (cycle_relay_state == HIGH) {
       turn_waves_off();
     }
   }
   
   if (debug_mode) {
     if (current_timer - debug_timer > debug_write_interval) {
-      Serial.println(String("Relay: " + relay_state));
-      Serial.println(String("Secs elpsd: " + (current_timer - relay_timer) / 1000));
+      Serial.println(String("Relay: " + cycle_relay_state));
+      Serial.println(String("Secs elpsd: " + (current_timer - cycle_relay_timer) / 1000));
       debug_timer = current_timer;
     }
   } 
@@ -124,10 +104,10 @@ void turn_waves_on() {
   }
       
   //set the relay timer to equal the current millis since reset
-  relay_timer = current_timer;
+  cycle_relay_timer = current_timer;
       
   //write the relay state to on
-  relay_state = HIGH;
+  cycle_relay_state = HIGH;
 
   //set the ring_bell flag to high and mark the start time
   ring_bell = HIGH;
@@ -140,10 +120,10 @@ void turn_waves_off() {
   }
       
   //set the relay timer to equal the current millis since reset
-  relay_timer = current_timer;
+  cycle_relay_timer = current_timer;
       
   //write the relay state to off
-  relay_state = LOW;
+  cycle_relay_state = LOW;
 }
 
 
@@ -151,10 +131,10 @@ void update_display() {
   unsigned long seconds_remaining = 0;
   
   //stores the number of seconds remaining in the current cycle as a plain number for display on 7seg
-  if (relay_state) {
-    seconds_remaining = (time_on * 60) - ((current_timer - relay_timer) / 1000);
+  if (cycle_relay_state) {
+    seconds_remaining = (time_on * 60) - ((current_timer - cycle_relay_timer) / 1000);
   } else {
-    seconds_remaining = (time_off * 60) - ((current_timer - relay_timer) / 1000);
+    seconds_remaining = (time_off * 60) - ((current_timer - cycle_relay_timer) / 1000);
   }
   
   //splits the number of remaining seconds into individual digits for display
@@ -174,10 +154,10 @@ void update_outdoor_display();
   unsigned long seconds_remaining = 0;
   
   //stores the number of seconds remaining in the current cycle as a plain number for display on 7seg
-  if (relay_state) {
-    seconds_remaining = (time_on  * 60) - ((current_timer - relay_timer) / 1000);
+  if (cycle_relay_state) {
+    seconds_remaining = (time_on  * 60) - ((current_timer - cycle_relay_timer) / 1000);
   } else {
-    seconds_remaining = (time_off * 60) - ((current_timer - relay_timer) / 1000);
+    seconds_remaining = (time_off * 60) - ((current_timer - cycle_relay_timer) / 1000);
   }
   
   //splits the number of remaining seconds into individual digits for display
