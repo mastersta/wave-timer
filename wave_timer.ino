@@ -8,19 +8,21 @@
 Adafruit_7segment matrix = Adafruit_7segment();
 
 
-const int relay_pin = 13;
-const int set_on_pin = A2;
-const int set_off_pin = A3;
-const int clock_pin = 4;
-const int load_pin = 5;
-const int data_pin = 6;
-const int latch_pin = 7;
-const int data_out_pin = 8;
+const int relay_pin      = 13;
+const int set_on_pin     = A2;
+const int set_off_pin    = A3;
+const int clock_pin      =  4;
+const int load_in_pin    =  5;
+const int data_in_pin    =  6;
+const int latch_in_pin   =  7;
+const int data_out_pin   =  8;
+const int load_out_pin   =  9;
+const int bell_pin       = 10;
 
 
 unsigned long time_on = 10;  // time relay closed and waves on (in minutes)
 unsigned long time_off = 15;  // time relay open and waves off (in minutes)
-const unsigned long minutes_to_millis = 60000;
+const unsigned long minutes_to_millis = 60000; //constant to convert minutes into millis
 
 int button_set_on_state = 0;
 int button_set_off_state = 0;
@@ -33,17 +35,28 @@ unsigned long current_timer = 0;
 int relay_state = LOW;
 unsigned long relay_timer = 0;
 
+boolean ring_bell = LOW;
+unsigned long bell_timer = 0;
+unsigned long bell_ring_length = 2000;
+
 void setup() {
-  pinMode(relay_pin, OUTPUT);
-  pinMode(set_on_pin, INPUT);
-  pinMode(set_off_pin, INPUT);
-  pinMode(clock_pin, OUTPUT);
-  pinMode(load_pin, OUTPUT);
-  pinMode(data_pin, INPUT);
+
+  pinMode(relay_pin, OUTPUT);      //pin that controls relay to operate waves
+  pinMode(set_on_pin, INPUT);      //pin that reads the set-on button
+  pinMode(set_off_pin, INPUT);     //pin that reads the set-off button
+  pinMode(clock_pin, OUTPUT);      //clock for time input and display output
+  pinMode(load_pin, OUTPUT);       //load pin for time input
+  pinMode(data_pin, INPUT);        //data pin for time input
+  pinMode(data_out_pin, OUTPUT);   //data pin for display output
+  pinMode(load_out_pin, OUTPUT);   //load pin for display output
+  pinMode(bell_pin, OUTPUT);       //pin that controls relay to operate bell
 
   digitalWrite(relay_pin, LOW);
   digitalWrite(clock_pin, LOW);
-  digitalWrite(load_pin, HIGH);
+  digitalWrite(load_in_pin, HIGH);
+  digitalWrite(data_out_pin, LOW);
+  digitalWrite(load_out_pin, LOW);
+  digitalWrite(bell_pin, LOW);
 
   Serial.begin(9600);
   matrix.begin(0x70);
@@ -69,6 +82,16 @@ void loop() {
   
   //write the relay state to the relay pin
   digitalWrite(relay_pin, relay_state);
+
+  //write the bell flag state to the pin for its relay
+  digitalWrite(bell_pin, ring_bell);
+
+  //check if the bell has been on for long enough and switch the flag if so
+  if ring_bell {
+    if ((millis() - bell_timer) > bell_ring_length) {
+      ring_bell = LOW;
+    }
+  }
   
   update_display();
   
@@ -105,6 +128,10 @@ void turn_waves_on() {
       
   //write the relay state to on
   relay_state = HIGH;
+
+  //set the ring_bell flag to high and mark the start time
+  ring_bell = HIGH;
+  bell_timer = millis();
 }
 
 void turn_waves_off() {
@@ -148,16 +175,16 @@ void update_outdoor_display();
   
   //stores the number of seconds remaining in the current cycle as a plain number for display on 7seg
   if (relay_state) {
-    seconds_remaining = (time_on * 60) - ((current_timer - relay_timer) / 1000);
+    seconds_remaining = (time_on  * 60) - ((current_timer - relay_timer) / 1000);
   } else {
     seconds_remaining = (time_off * 60) - ((current_timer - relay_timer) / 1000);
   }
   
   //splits the number of remaining seconds into individual digits for display
   int mins_tens = round((seconds_remaining / 600) % 100);
-  int mins_ones = round((seconds_remaining / 60) % 10);
-  int secs_tens = ((seconds_remaining / 10) % 6);
-  int secs_ones = (seconds_remaining % 10);
+  int mins_ones = round((seconds_remaining /  60) %  10);
+  int secs_tens =      ((seconds_remaining /  10) %   6);
+  int secs_ones =       (seconds_remaining %  10);
 
   byte segment_array[10] = {
     0b11111100, //0
@@ -172,11 +199,19 @@ void update_outdoor_display();
     0b11100110, //9
   };
 
+  /*
+     _a_
+    f| |b
+     _g_
+    e| |c
+     _d_
+  */
+
   unsigned long output = {
-    (mins_tens << 24) +
-    (mins_ones << 16) +
-    (secs_tens << 8) +
-    (secs_ones)
+    (segment_array[mins_tens] << 24 ) +
+    (segment_array[mins_ones] << 16 ) +
+    (segment_array[secs_tens] << 8  ) +
+    (segment_array[secs_ones]       )
   };
 
   /*
@@ -194,12 +229,6 @@ void update_outdoor_display();
      secs_ones = 01100110 ==      00000000000000000000000001100110
 
   and all together:               01100000110110101111001001100110
-  
-     _a_
-    f| |b
-     _g_
-    e| |c
-     _d_
   */
 
   shiftOut(data_out_pin, clock_pin, MSBFIRST, output);
@@ -209,9 +238,9 @@ void update_outdoor_display();
 void set_times() {
   byte input_byte = 0b00000000;
   
-  digitalWrite(load_pin, LOW);
+  digitalWrite(load_in_pin, LOW);
   delay(5);
-  digitalWrite(load_pin, HIGH);
+  digitalWrite(load_in_pin, HIGH);
   delay(5);
   
   for(int i = 0; i < 8; i++) {
