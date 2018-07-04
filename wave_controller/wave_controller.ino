@@ -45,7 +45,8 @@ void setup()
 }
 
 
-
+// checks to see if an event has passed a time limit
+// pass in millis() and a variable initialized at the event start + time event should last
 bool timer(unsigned long current_time, unsigned long exit_time)
 {
   
@@ -56,7 +57,10 @@ bool timer(unsigned long current_time, unsigned long exit_time)
 
 
 
-
+// determines if we're on the cycle or off, then swaps the cycle if enough time has passed, based on the
+// constant times defined up top
+// also handles the button presses to manually turn on or off the wave cycle, plus calls the function to
+// actuate the diverters
 unsigned long set_wave_cycle(unsigned long exit_cycle_time)
 {
   
@@ -99,7 +103,8 @@ unsigned long set_wave_cycle(unsigned long exit_cycle_time)
 }
 
 
-
+// pulls the analog values from the potentiometers to determine how long to spend on each side of the diverter
+// cycle
 unsigned long get_diverter_time(int state)
 {
 
@@ -113,7 +118,8 @@ unsigned long get_diverter_time(int state)
 
 
 
-
+// sets the state of the diverter relay, switching it if enough time has elapsed, based on what the analog pots
+// are feeding the get_diverter_time() function
 void set_diverters()
 {
   
@@ -131,7 +137,7 @@ void set_diverters()
 }
 
 
-
+// updates the seven segment display on the front of the case with how much time is left in the wave cycle
 void update_display(unsigned long exit_cycle_time)
 {
   unsigned long cycle_seconds_remaining = ((exit_cycle_time - millis())/1000);
