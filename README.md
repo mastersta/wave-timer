@@ -2,7 +2,7 @@
 
 ####Circuit Schematic
 
-![Circuit Schematic](https://raw.githubusercontent.com/mastersta/wave-timer/wave-controller/diag.jpg)
+![Circuit Schematic](wave-controller/diag.jpg)
 
 This board that I designed is being used in a commercial setting where I'm controlling the broken features of a wave machine at an old waterpark. It's providing three functions for me, with all the logic being provided by an arduino nano:
 
