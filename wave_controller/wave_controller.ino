@@ -77,12 +77,12 @@ unsigned long set_wave_cycle(unsigned long exit_cycle_time)
     digitalWrite(cycle_relay_pin, i);
     if (i) 
     {
-      exit_cycle_time = (millis() + cycle_off_time);
+      exit_cycle_time = (millis() + cycle_on_time);
       bell_exit_time = (millis() + bell_ring_time);
     }
     else 
     {
-      exit_cycle_time = (millis() + cycle_on_time);
+      exit_cycle_time = (millis() + cycle_off_time);
     }
     Serial.println("auto");
     digitalWrite(13, i);
