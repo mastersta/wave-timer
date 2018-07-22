@@ -19,7 +19,7 @@ const int diverter_on_pin           = A7; // input, analog; reads pot that deter
 // -----constant initialization-----
 const unsigned long cycle_on_time   = 600000; // time wave cycle is on, in milliseconds
 const unsigned long cycle_off_time  = 900000; // time wave cycle is off, in milliseconds
-const unsigned long bell_ring_time  = 3000  ; // time bell should ring at start of cycle
+const unsigned long bell_ring_time  = 5000  ; // time bell should ring at start of cycle
 const float analog_read_multiplier  = 3     ;
 
 
