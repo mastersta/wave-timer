@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include "Adafruit_LEDBackpack.h"
+#include <avr/wdt.h>
 
 Adafruit_7segment matrix = Adafruit_7segment();
 
@@ -44,7 +45,24 @@ void setup()
   matrix.begin(0x70);
   Serial.begin(9600);
   
+  watchdog_setup();
+
   delay(1000);
+
+}
+
+
+
+void watchdog_setup()
+{
+
+  cli();
+  wdt_reset();
+
+  WDTCSR |= B00011000;
+  WDTCSR  = B01000110;
+
+  sei();
 
 }
 
@@ -174,11 +192,23 @@ void update_display(unsigned long exit_cycle_time)
 
 
 
+ISR(WDT_vect)
+{
+
+  digitalWrite(cycle_relay_pin,    LOW);
+  digitalWrite(diverter_relay_pin, LOW);
+  digitalWrite(bell_pin,           LOW);
+
+}
+
+
+
 void loop()
 {
 
   static unsigned long exit_cycle_time = (millis() + cycle_off_time);
   exit_cycle_time = set_wave_cycle(exit_cycle_time);
   update_display(exit_cycle_time);
+  wdt_reset();
 
 }
