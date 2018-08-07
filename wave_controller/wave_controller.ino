@@ -14,14 +14,15 @@ const int diverter_relay_pin        = 3;  // output; controls relay that actuate
 const int cycle_on_pin              = 4;  // input, digital; reads button that engages cycle
 const int cycle_off_pin             = 5;  // input, digital; reads button that disengages cycle
 const int bell_pin                  = 6;  // output, controls relay that turns on/off the bell
+const int power_led_pin             = 7;  // output, powers LED that displays that the controller is on
 const int diverter_off_pin          = A6; // input, analog; reads pot that determines diverter off time
 const int diverter_on_pin           = A7; // input, analog; reads pot that determines diverter on time
 
 // -----constant initialization-----
-const unsigned long cycle_on_time   = 600000; // time wave cycle is on, in milliseconds
-const unsigned long cycle_off_time  = 900000; // time wave cycle is off, in milliseconds
-const unsigned long bell_ring_time  = 5000  ; // time bell should ring at start of cycle
-const float analog_read_multiplier  = 3     ;
+const unsigned long cycle_on_time              = 600000; // time wave cycle is on, in milliseconds
+const unsigned long cycle_off_time             = 900000; // time wave cycle is off, in milliseconds
+const unsigned long bell_ring_time             = 5000  ; // time bell should ring at start of cycle
+const float analog_read_multiplier             = 3     ;
 
 
 
@@ -33,14 +34,16 @@ void setup()
   pinMode(cycle_on_pin,       INPUT);
   pinMode(cycle_off_pin,      INPUT);
   pinMode(bell_pin,           OUTPUT);
+  pinMode(power_led_pin,      OUTPUT);
   pinMode(diverter_off_pin,   INPUT);
   pinMode(diverter_on_pin,    INPUT);
   
-  pinMode(13, OUTPUT);
+  pinMode(13, OUTPUT);  // debug led
 
   digitalWrite(cycle_relay_pin,     LOW);
   digitalWrite(diverter_relay_pin,  LOW);
   digitalWrite(bell_pin,            LOW);
+  digitalWrite(power_led_pin,      HIGH); // remains high to show that power is on
 
   matrix.begin(0x70);
   Serial.begin(9600);
@@ -103,7 +106,6 @@ unsigned long set_wave_cycle(unsigned long exit_cycle_time)
       exit_cycle_time = (millis() + cycle_off_time);
     }
     Serial.println("auto");
-    digitalWrite(13, i);
   }
   
   else if (digitalRead(cycle_on_pin) && !i)
@@ -113,7 +115,6 @@ unsigned long set_wave_cycle(unsigned long exit_cycle_time)
     exit_cycle_time = (millis() + cycle_on_time);
     bell_exit_time = (millis() + bell_ring_time);
     Serial.println("manual on");
-    digitalWrite(13, i);
   }
   
   else if (digitalRead(cycle_off_pin) && i)
@@ -122,14 +123,13 @@ unsigned long set_wave_cycle(unsigned long exit_cycle_time)
     digitalWrite(cycle_relay_pin, i);
     exit_cycle_time = (millis() + cycle_off_time);
     Serial.println("manual off");
-    digitalWrite(13, i);
   }
 
   if(i) { set_diverters(); }
   else { digitalWrite(diverter_relay_pin, LOW); }
-
-  digitalWrite(bell_pin,!timer(millis(),bell_exit_time));
   
+  digitalWrite(bell_pin,!timer(millis(),bell_exit_time));
+
   return exit_cycle_time;
 
 }
@@ -162,7 +162,6 @@ void set_diverters()
     i = !i;
     digitalWrite(diverter_relay_pin, i);
     exit_diverter_time = (millis() + get_diverter_time(i));
-    Serial.println("div");
   }
 
 }
@@ -192,12 +191,39 @@ void update_display(unsigned long exit_cycle_time)
 
 
 
+// flashes the power led pin off periodically to indicate that the loop is still running
+const unsigned long flash_duty_cycle = 0.1; // percent of one second that power led flashes off
+
+void flash_power_led()
+{
+  
+  static unsigned long exit_flash_time = 0;
+  static bool i = false;
+
+  if(timer(millis(),exit_flash_time) && i)
+  {
+    i = !i;
+    exit_flash_time = (millis() + (1000 * flash_duty_cycle));
+  }
+  else if(timer(millis(),exit_flash_time) && !i)
+  {
+    i = !i;
+    exit_flash_time = (millis() + (1 - (1000 * flash_duty_cycle)));
+  }
+
+  digitalWrite(power_led_pin, i);
+
+}
+
+
+
 ISR(WDT_vect)
 {
 
   digitalWrite(cycle_relay_pin,    LOW);
   digitalWrite(diverter_relay_pin, LOW);
   digitalWrite(bell_pin,           LOW);
+  digitalWrite(power_led_pin,      LOW);
 
 }
 
@@ -209,6 +235,7 @@ void loop()
   static unsigned long exit_cycle_time = (millis() + cycle_off_time);
   exit_cycle_time = set_wave_cycle(exit_cycle_time);
   update_display(exit_cycle_time);
+  flash_power_led();
   wdt_reset();
 
 }
